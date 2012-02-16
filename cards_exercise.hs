@@ -3,13 +3,25 @@
 Homework assignment for Haskell Dojo #1
 ---------------------------------------
 
-Implement a function that takes as input a list of cards and returns what poker hand it was.
+Implement a function that takes as input a list of cards and returns
+what poker hand it was.
 
-You can see below for data type declarations that you can use for representing the input and output of this function.
+You can see below for data type declarations that you can use for
+representing the input and output of this function.
 
 Feel free to modify them any way you want.
 
-Implementing support for the "Joker" (or wildcard?) card is optional.  The reference implementation (to be posted later) does not implement joker handling because the solution is easier to read without them.
+Implementing support for the "Joker" (or wildcard?) card is optional.
+The reference implementation (to be posted later) does not implement
+joker handling because the solution is easier to read without them.
+
+Examples:
+
+*Cards> checkHand [Card Diamonds 3, Card Hearts 3, Card Diamonds 5, Card Spades 6, Card Spades 7]
+Pair
+
+*Cards> checkHand [Card Diamonds 3, Card Hearts 4, Card Diamonds 5, Card Spades 6, Card Spades 7]
+Straight
 
 -}
 
