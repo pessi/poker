@@ -19,6 +19,10 @@ Use this as the spec for poker hands:
 
 http://ourpokerleague.co.uk/img/poker_hands.gif
 
+The topmost is the most valuable hand, so match that first.  E.g., 
+a royal flush of [A14, A13, A12, A11, A10] is also a straight and a 
+flush.  But your function should detect that case as the royal flush.
+
 Examples:
 
 *Cards> checkHand [Card Diamonds 3, Card Hearts 3, Card Diamonds 5, Card Spades 6, Card Spades 7]
