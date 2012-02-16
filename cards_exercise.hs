@@ -15,6 +15,10 @@ Implementing support for the "Joker" (or wildcard?) card is optional.
 The reference implementation (to be posted later) does not implement
 joker handling because the solution is easier to read without them.
 
+Use this as the spec for poker hands: 
+
+http://ourpokerleague.co.uk/img/poker_hands.gif
+
 Examples:
 
 *Cards> checkHand [Card Diamonds 3, Card Hearts 3, Card Diamonds 5, Card Spades 6, Card Spades 7]
