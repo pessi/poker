@@ -49,6 +49,11 @@ scores higher than a pair of 2's.
 
 -}
 
+module Poker where
+
+import Data.List
+import Data.Eq
+
 data Suit = Hearts | Spades | Diamonds | Clubs
     deriving (Show, Eq, Ord)
 
@@ -70,4 +75,55 @@ data Hand =
 
 
 checkHand :: [Card] -> Hand
--- TODO implement this
+checkHand cards
+  | royalFlush = RoyalFlush
+  | straightFlush = StraightFlush
+  | fourOfKind = FourOfKind
+  | fullHouse = FullHouse
+  | flush = Flush
+  | straight = Straight
+  | threeOfKind = ThreeOfKind
+  | twoPairs = TwoPairs
+  | pair = Pair
+  | otherwise = HighCard
+  where
+    cs = [ c | c <- cards, c /= Joker ]
+    ranks = sort $ map rank cs
+    suits = sort $ map suit cs
+    revByLength a b = compare (length b) (length a)
+    groupedKind = sortBy revByLength $ group ranks
+    nOfKind = length $ head groupedKind
+    mOfKind = if tail groupedKind /= [] then length $ groupedKind !! 1 else 0
+    pair = nOfKind == 2
+    twoPairs = nOfKind == 2 && mOfKind == 2
+    threeOfKind = nOfKind == 3
+    fullHouse = nOfKind == 3 && mOfKind == 2
+    fourOfKind = nOfKind == 4
+    straighted = straighten ranks
+    straight = hasStraight straighted
+    groupedSuit = sortBy revByLength $ group suits
+    nOfSuits = length $ head groupedSuit
+    flush = nOfSuits == 5
+    straightedBySuit = straightenBySuit cs
+    straightFlush = any hasStraight straightedBySuit
+    hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
+    royalFlush = any hasRoyalStraight straightedBySuit
+
+hasStraight = hasNStraight 5
+
+hasNStraight :: Int -> [Int] -> Bool
+hasNStraight n xs
+  | length xs < n = False
+  | otherwise = [x .. x + n - 1] == take n xs
+  where x = head xs
+
+straighten rs
+  | null rs = []
+  | head rs == 1 = nubs ++ [14]
+  | otherwise = nubs
+  where nubs = nub rs
+
+straightenBySuit cards = [straighten $ sort [ rank c | c <- cards, suit c == s]
+                       | s <- [Hearts, Spades, Diamonds, Clubs]]
+
+hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
