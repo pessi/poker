@@ -61,7 +61,8 @@ data Card = Card { suit :: Suit, rank :: Int } | Joker
     deriving (Show, Eq, Ord)
 
 data Hand =
-    RoyalFlush
+  FiveOfKind
+  | RoyalFlush
   | StraightFlush
   | FourOfKind
   | FullHouse
@@ -76,6 +77,7 @@ data Hand =
 
 checkHand :: [Card] -> Hand
 checkHand cards
+  | fiveOfKind = FiveOfKind
   | royalFlush = RoyalFlush
   | straightFlush = StraightFlush
   | fourOfKind = FourOfKind
@@ -88,6 +90,7 @@ checkHand cards
   | otherwise = HighCard
   where
     cs = [ c | c <- cards, c /= Joker ]
+    joker = any (Joker ==) cards
     ranks = sort $ map rank cs
     suits = sort $ map suit cs
     revByLength a b = compare (length b) (length a)
@@ -95,19 +98,28 @@ checkHand cards
     nOfKind = length $ head groupedKind
     mOfKind = if tail groupedKind /= [] then length $ groupedKind !! 1 else 0
     pair = nOfKind == 2
+           || joker
     twoPairs = nOfKind == 2 && mOfKind == 2
     threeOfKind = nOfKind == 3
+                  || joker && nOfKind == 2
     fullHouse = nOfKind == 3 && mOfKind == 2
+                || joker && nOfKind == 2 && mOfKind == 2
     fourOfKind = nOfKind == 4
+                 || joker && nOfKind == 3
+    fiveOfKind = nOfKind == 4 && joker
     straighted = straighten ranks
     straight = hasStraight straighted
+               || joker && hasWildStraight straighted
     groupedSuit = sortBy revByLength $ group suits
     nOfSuits = length $ head groupedSuit
     flush = nOfSuits == 5
+            || joker && nOfSuits == 4
     straightedBySuit = straightenBySuit cs
     straightFlush = any hasStraight straightedBySuit
+                    || joker && any hasWildStraight straightedBySuit
     hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
     royalFlush = any hasRoyalStraight straightedBySuit
+                 || joker && any hasWildRoyalStraight straightedBySuit
 
 hasStraight = hasNStraight 5
 
@@ -123,7 +135,16 @@ straighten rs
   | otherwise = nubs
   where nubs = nub rs
 
+hasWildStraight :: [Int] -> Bool
+hasWildStraight ranks
+  | length ranks < 4 = False
+  | otherwise = any hasStraight rss
+  where
+    rs = straighten $ sort ranks
+    rss = [ sort (r : rs) | r <- [1..14], not (r `elem` rs)]
+
 straightenBySuit cards = [straighten $ sort [ rank c | c <- cards, suit c == s]
                        | s <- [Hearts, Spades, Diamonds, Clubs]]
 
 hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
+hasWildRoyalStraight xs = hasWildStraight [x | x <- xs, x >= 10]
