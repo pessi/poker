@@ -102,7 +102,7 @@ checkHand cards
     twoPairs = nOfKind == 2 && mOfKind == 2
     threeOfKind = nOfKind == 3
                   || joker && nOfKind == 2
-    fullHouse = nOfKind == 3 && mOfKind == 2
+    fullHouse = nOfKind == 3 && mOfKind >= 2
                 || joker && nOfKind == 2 && mOfKind == 2
     fourOfKind = nOfKind == 4
                  || joker && nOfKind == 3
