@@ -18,4 +18,7 @@ hrf = [ h 1, h 10, h 13, h 12, h 11 ]
 
 hands = [h1, h2, h3, h32, h4, hs, hf, hsf, hrf ]
 
+jhands = map (\ h -> j : h) hands
+
 results = map checkHand hands
+jresults = map checkHand jhands
