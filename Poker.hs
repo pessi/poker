@@ -126,7 +126,8 @@ hasStraight = hasNStraight 5
 hasNStraight :: Int -> [Int] -> Bool
 hasNStraight n xs
   | length xs < n = False
-  | otherwise = [x .. x + n - 1] == take n xs
+  | [x .. x + n - 1] == take n xs = True
+  | otherwise = hasNStraight n $ tail xs
   where x = head xs
 
 straighten rs
