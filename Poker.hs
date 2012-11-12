@@ -61,19 +61,18 @@ data Card = Card { suit :: Suit, rank :: Int } | Joker
     deriving (Show, Eq, Ord)
 
 data Hand =
-  FiveOfKind
-  | RoyalFlush
+  HighCard
+  | Pair
+  | TwoPairs
+  | ThreeOfKind
+  | Straight
+  | Flush
+  | FullHouse
   | StraightFlush
   | FourOfKind
-  | FullHouse
-  | Flush
-  | Straight
-  | ThreeOfKind
-  | TwoPairs
-  | Pair
-  | HighCard
-  deriving (Eq, Show)
-
+  | RoyalFlush
+  | FiveOfKind
+  deriving (Eq, Ord, Show)
 
 checkHand :: [Card] -> Hand
 checkHand cards
