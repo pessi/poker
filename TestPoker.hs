@@ -24,23 +24,22 @@ jhands = map (\ h -> j : h) hands
 results = map checkHand hands
 jresults = map checkHand jhands
 
-perms [] = [[]]
-perms xs = [ x:ps | x <- xs , ps <- perms ( xs \\ [x] ) ]
-
 -- subsets of size k
-combs 0 _ = [[]]
-combs _ [] = []
-combs k (x:xs)
+combs' 0 _ = [[]]
+combs' _ [] = []
+combs' k (x:xs)
   | k > length xs + 1 = []
-  | otherwise = map (x:) (combs (k-1) xs) ++ combs k xs
+  | otherwise = map (x:) (combs' (k-1) xs) ++ combs' k xs
+
+combs k xs = reverse $ combs' k $ sortBy (flip compare) xs
 
 suits = [Hearts, Spades, Diamonds, Clubs]
 
 handify :: [Int] -> [Card]
-handify rs = map (\ (s, r) -> Card s r) $ zip (cycle suits) rs
+handify rs = map (uncurry Card) $ zip (cycle suits) $ map modRank rs
 
-heartify :: [Int] -> [Card]
-heartify rs = map (Card Hearts) rs
+flushify :: [Int] -> [Card]
+flushify rs = map (Card Hearts . modRank) rs
 
 modRank :: Int -> Int
 modRank n
@@ -48,42 +47,44 @@ modRank n
   | n > 13 = n - 13
   | otherwise = n
 
-l2h :: [Int]
-l2h = [2..13] ++ [1]
-
 {- there will be 7,462 distinct hands in 5-card poker -}
 ranking5 :: [[Card]]
-ranking5 = highCards ++
-       pairs ++
-       twoPairs ++
-       threeOfKinds ++
-       straights ++
-       flushes ++
-       fullHouses ++
-       straightFlushes ++
-       fourOfKinds ++
-       royalFlush
+ranking5 = map handify highs ++
+       map handify pairs ++
+       map handify twoPairs ++
+       map handify threeOfKinds ++
+       map handify straights ++
+       map flushify highs ++
+       map handify fullHouses ++
+       (map flushify $ init straights) ++
+       map handify fourOfKinds ++
+       [flushify $ last straights]
   where
     highs :: [[Int]]
-    highs = concat ([ map (n :) (init $ combs 4 [2..n-1]) | n <- [7..13]] ++
-                     [ map (1 :) (init $ tail $ combs 4 [2..13])])
-    highCards = map handify highs
-    pairs = map handify $ concat [ map ([n,n] ++) (combs 3 (l2h \\ [n])) | n <- l2h]
-    twoPairs = map handify $ concat $ concat
-               [[[[n,n,m,m,x] | x <- l2h \\ [n,m]]
-                       | m <- [2..modRank $ n - 1]]
-                       | n <- tail l2h]
-    threeOfKinds = map handify $ concat
-                   [ map ([n,n,n] ++) (combs 2 (l2h \\ [n])) | n <- l2h]
-    conts :: [[Int]]
-    conts = concat [[[n..n+4] | n <- [1..9]] ++ [[10,11,12,13,1]]]
-    straights = map handify conts
-    flushes = map heartify highs
-    fullHouses = map handify $ concat [[[n,n,n,m,m] | m <- l2h \\ [n]] | n <- l2h]
-    straightFlushes = map heartify $ init conts
-    fourOfKinds = map handify $ concat [[[n,n,n,n,m] | m <- l2h \\ [n]] | n <- l2h]
-    royalFlush = map heartify [[1, 13, 12, 11, 10]]
+    highs = concat ([ map (n :) (init $ combs 4 [2..n-1]) | n <- [7..13]])
+            ++ map (1 :) (tail $ init $ combs 4 [2..13])
+    pairs = concat [ map ([n,n] ++) (combs 3 ([2..14] \\ [n])) | n <- [2..14]]
+    twoPairs = concat $ concat
+               [[[[n,n,m,m,x] | x <- [2..14] \\ [n,m]] | m <- [2..n-1]] | n <- [3..14]]
+    threeOfKinds = concat
+                   [ map ([n,n,n] ++) (combs 2 ([2..14] \\ [n])) | n <- [2..14]]
+    straights = take 10 $ map (take 5) $ iterate tail [1..14]
+    fullHouses = concat [[[n,n,n,m,m] | m <- [2..14] \\ [n]] | n <- [2..14]]
+    fourOfKinds = concat [[[n,n,n,n,m] | m <- [2..14] \\ [n]] | n <- [2..14]]
 
-group5 = map length $ group $ map checkHand ranking5
-expect5 :: [Int]
-expect5 = [1277,2860,858,858,10,1277,156,9,156,1]
+expect5 :: [(Hand, Int)]
+expect5 = [(HighCard, 1277)
+          ,(Pair, 2860)
+          ,(TwoPairs, 858)
+          ,(ThreeOfKind, 858)
+          ,(Straight, 10)
+          ,(Flush, 1277)
+          ,(FullHouse, 156)
+          ,(StraightFlush, 9)
+          ,(FourOfKind, 156)
+          ,(RoyalFlush, 1)]
+group5 = map ( \ g -> (head g, length g)) $ group $ map checkHand ranking5
+checkOk = group5 == expect5
+
+ranked5 = map rankHand ranking5
+rankOk = all (uncurry (<)) $ zip ranked5 $ tail ranked5
