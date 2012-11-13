@@ -53,6 +53,7 @@ module Poker where
 
 import Data.List
 import Data.Eq
+import Data.Maybe
 
 data Suit = Hearts | Spades | Diamonds | Clubs
     deriving (Show, Eq, Ord)
@@ -75,27 +76,39 @@ data Hand =
   deriving (Eq, Ord, Show)
 
 checkHand :: [Card] -> Hand
-checkHand cards
-  | fiveOfKind = FiveOfKind
-  | royalFlush = RoyalFlush
-  | straightFlush = StraightFlush
-  | fourOfKind = FourOfKind
-  | fullHouse = FullHouse
-  | flush = Flush
-  | straight = Straight
-  | threeOfKind = ThreeOfKind
-  | twoPairs = TwoPairs
-  | pair = Pair
-  | otherwise = HighCard
+checkHand cards = hand $ rankHand cards
+
+data HandRank = HandRank { hand :: Hand, ranks :: [Int] }
+     deriving (Show, Eq, Ord)
+
+rankHand :: [Card] -> HandRank
+rankHand cards
+  | fiveOfKind = HandRank FiveOfKind best5
+  | royalFlush = HandRank RoyalFlush [14]
+  | straightFlush = HandRank StraightFlush sf5
+  | fourOfKind = HandRank FourOfKind best5
+  | fullHouse = HandRank FullHouse best5
+  | flush = HandRank Flush flush5
+  | straight = HandRank Straight str5
+  | threeOfKind = HandRank ThreeOfKind best5
+  | twoPairs = HandRank TwoPairs best5
+  | pair = HandRank Pair best5
+  | otherwise = HandRank HighCard best5
   where
     cs = [ c | c <- cards, c /= Joker ]
     joker = any (Joker ==) cards
-    ranks = sort $ map rank cs
-    suits = sort $ map suit cs
-    revByLength a b = compare (length b) (length a)
-    groupedKind = sortBy revByLength $ group ranks
-    nOfKind = length $ head groupedKind
-    mOfKind = if tail groupedKind /= [] then length $ groupedKind !! 1 else 0
+
+    replace1by14 x = if x == 1 then 14 else x
+    kindsOf rs = sortBy (flip compare) $ map replace1by14 rs
+    longestFirst a b = compare (length b) (length a)
+    kinds = sortBy longestFirst $ group $ kindsOf $ map rank cs
+    nOfKind = length $ head kinds
+    mOfKind = length $ if tail kinds /= []
+                       then head $ tail kinds
+                       else []
+    best5 = if joker
+            then take 5 $ (head $ head kinds) : concat kinds
+            else take 5 $ concat kinds
     pair = nOfKind == 2
            || joker
     twoPairs = nOfKind == 2 && mOfKind == 2
@@ -106,45 +119,64 @@ checkHand cards
     fourOfKind = nOfKind == 4
                  || joker && nOfKind == 3
     fiveOfKind = nOfKind == 4 && joker
-    straighted = straighten ranks
-    straight = hasStraight straighted
-               || joker && hasWildStraight straighted
-    groupedSuit = sortBy revByLength $ group suits
-    nOfSuits = length $ head groupedSuit
+
+    wrapped = wrapAce $ map rank cs
+    straight = hasStraight wrapped
+               || joker && hasWildStraight wrapped
+    str5 = fromJust $ fromJust $ find isJust $
+           [ getStraight wrapped, getWildStraight wrapped ]
+
+    suits = sortBy longestFirst $ group $ sort $ map suit cs
+    longestSuit = head $ head suits
+    nOfSuits = length $ head suits
     flush = nOfSuits == 5
             || joker && nOfSuits == 4
-    straightedBySuit = straightenBySuit cs
-    straightFlush = any hasStraight straightedBySuit
-                    || joker && any hasWildStraight straightedBySuit
+
+    flush5 = take 5 $ kindsOf [ rank c | c <- cs, suit c == longestSuit]
+
+    wrappedBySuit = map wrapAce $ bySuit cs
+    straightFlush = any hasStraight wrappedBySuit
+                    || joker && any hasWildStraight wrappedBySuit
+
+    sf5 = fromJust $ fromJust $ find isJust $
+          map getStraight wrappedBySuit ++
+          map getWildStraight wrappedBySuit
+
     hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
-    royalFlush = any hasRoyalStraight straightedBySuit
-                 || joker && any hasWildRoyalStraight straightedBySuit
+    hasWildRoyalStraight xs = hasWildStraight [x | x <- xs, x >= 10]
+    royalFlush = any hasRoyalStraight wrappedBySuit
+                 || joker && any hasWildRoyalStraight wrappedBySuit
 
-hasStraight = hasNStraight 5
+hasStraight xs = isJust $ getStraight xs
+getStraight = getNStraight 5
 
-hasNStraight :: Int -> [Int] -> Bool
-hasNStraight n xs
-  | length xs < n = False
-  | [x .. x + n - 1] == take n xs = True
-  | otherwise = hasNStraight n $ tail xs
+getNStraight :: Int -> [Int] -> Maybe [Int]
+getNStraight n xs
+  | length xs < n = Nothing
+  | nx == take n xs = Just nx
+  | otherwise = getNStraight n $ tail xs
   where x = head xs
+        nx = [x,x-1 .. x - n + 1]
 
-straighten rs
+wrapAce :: [Int] -> [Int]
+wrapAce rs
   | null rs = []
-  | head rs == 1 = nubs ++ [14]
+  | last nubs == 1 = 14 : nubs
   | otherwise = nubs
-  where nubs = nub rs
+  where nubs = nub $ sortBy (flip compare) rs
 
 hasWildStraight :: [Int] -> Bool
-hasWildStraight ranks
-  | length ranks < 4 = False
-  | otherwise = any hasStraight rss
+hasWildStraight ranks = isJust $ getWildStraight ranks
+
+getWildStraight :: [Int] -> Maybe [Int]
+getWildStraight ranks
+   | length ranks < 4 = Nothing -- Optimization. Whee
+   | isNothing result = Nothing
+   | otherwise = fromJust result
   where
-    rs = straighten $ sort ranks
-    rss = [ sort (r : rs) | r <- [1..14], not (r `elem` rs)]
+    rs = wrapAce ranks
+    rss = [ insert r rs | r <- [14,13..1], r `notElem` rs]
+    result = find isJust $ map getStraight rss
 
-straightenBySuit cards = [straighten $ sort [ rank c | c <- cards, suit c == s]
-                       | s <- [Hearts, Spades, Diamonds, Clubs]]
-
-hasRoyalStraight xs = hasStraight [x | x <- xs, x >= 10]
-hasWildRoyalStraight xs = hasWildStraight [x | x <- xs, x >= 10]
+bySuit cards = [[ rank c | c <- cards, suit c == s]
+               | s <- [Hearts, Spades, Diamonds, Clubs]]
